@@ -186,8 +186,10 @@ def _map_shot_family(stroke: Stroke) -> str:
         return "SLICE"
     if code in {"o", "p"}:
         return "SMASH"
-    if code in {"u", "y", "l", "m"}:
-        return "DROP_LOB"
+    if code in {"u", "y"}:
+        return "DROP_SHOT"
+    if code in {"l", "m"}:
+        return "LOB"
     return "OTHER"
 
 
