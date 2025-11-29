@@ -209,4 +209,5 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Tennis data files
+/raw_data/**
 /data/**
