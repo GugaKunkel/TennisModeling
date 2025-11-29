@@ -123,43 +123,43 @@ def parse_rally(rally_str: str, player1_starts: bool = True) -> list[dict]:
     return [asdict(stroke) for stroke in strokes]
 
 
-# def parse_rally_events(rally_str: str, player1_starts: bool = True) -> list[Stroke]:
-#     """
-#     Parse a rally string but return Stroke instances for downstream processing.
-#     """
-#     parser = _RallyParser(rally_str, player1_starts)
-#     strokes = parser.parse()
-#     _annotate_strokes(strokes)
-#     return strokes
+def parse_rally_events(rally_str: str, player1_starts: bool = True) -> list[Stroke]:
+    """
+    Parse a rally string but return Stroke instances for downstream processing.
+    """
+    parser = _RallyParser(rally_str, player1_starts)
+    strokes = parser.parse()
+    _annotate_strokes(strokes)
+    return strokes
 
 
-# def parse_point(first_serve: str, second_serve: str, server_is_player1: bool = True) -> list[Stroke]:
-#     """
-#     Parse a full point using the first- and second-serve strings from MatchChartingProject data.
+def parse_point(first_serve: str, second_serve: str, server_is_player1: bool = True) -> list[Stroke]:
+    """
+    Parse a full point using the first- and second-serve strings from MatchChartingProject data.
 
-#     The second-serve string is only used when the first serve does not already contain
-#     a terminal outcome and ends with a fault / lost first serve.
-#     """
-#     strokes: list[Stroke] = []
-#     first = parse_rally_events(first_serve, player1_starts=server_is_player1)
-#     strokes.extend(first)
+    The second-serve string is only used when the first serve does not already contain
+    a terminal outcome and ends with a fault / lost first serve.
+    """
+    strokes: list[Stroke] = []
+    first = parse_rally_events(first_serve, player1_starts=server_is_player1)
+    strokes.extend(first)
 
-#     needs_second = False
-#     if not first:
-#         needs_second = True
-#     else:
-#         last = first[-1]
-#         needs_second = not last.terminal and (last.outcome in (None, "fault") or last.shot_type == "time violation")
+    needs_second = False
+    if not first:
+        needs_second = True
+    else:
+        last = first[-1]
+        needs_second = not last.terminal and (last.outcome in (None, "fault") or last.shot_type == "time violation")
 
-#     if second_serve and needs_second:
-#         second = parse_rally_events(second_serve, player1_starts=server_is_player1)
-#         offset = len(strokes)
-#         for idx, stroke in enumerate(second):
-#             stroke.stroke_idx = offset + idx
-#         strokes.extend(second)
+    if second_serve and needs_second:
+        second = parse_rally_events(second_serve, player1_starts=server_is_player1)
+        offset = len(strokes)
+        for idx, stroke in enumerate(second):
+            stroke.stroke_idx = offset + idx
+        strokes.extend(second)
 
-#     _annotate_strokes(strokes)
-#     return strokes
+    _annotate_strokes(strokes)
+    return strokes
 
 
 def _annotate_strokes(strokes: list[Stroke]) -> None:

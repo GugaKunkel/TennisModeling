@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 import unittest
-from data_parser import ParseError, parse_rally
+from data_parser import ParseError, parse_point, parse_rally
 
 
 DATA_DIR = Path("raw_data")
@@ -209,6 +209,7 @@ class ParseRallyUnitTests(unittest.TestCase):
     # Don't know if it should be treated as returner shank or extra fault marker yet
     def test_fault_suffix_markers_and_digits(self):
         shots = parse_rally("6d!2")
+        self.assertEqual(len(shots), 1)
         serve = shots[0]
         self.assertIn("extra fault marker !", serve["modifiers"])
         self.assertTrue(any(tag.endswith("2") for tag in serve["modifiers"]))
@@ -260,6 +261,43 @@ class ParseRallyDatasetSmokeTests(unittest.TestCase):
                 f"{fname}:{line} [{col}] '{rally}' -> {err}" for fname, line, col, rally, err in failures
             ),
         )
+
+
+class ParsePointIntegrationTests(unittest.TestCase):
+    def test_first_serve_ace_skips_second(self):
+        strokes = parse_point(first_serve="6*", second_serve="4b3", server_is_player1=True)
+        self.assertEqual(len(strokes), 1)
+        self.assertEqual(strokes[0].shot_type, "serve")
+        self.assertEqual(strokes[0].outcome, "ace")
+        self.assertTrue(strokes[0].terminal)
+
+    def test_first_fault_uses_second_and_offsets_indices(self):
+        strokes = parse_point(first_serve="6d", second_serve="4f2n@", server_is_player1=True)
+        self.assertEqual(len(strokes), 3)  # first serve fault + second serve + rally finisher
+        self.assertEqual([s.stroke_idx for s in strokes], [0, 1, 2])
+        self.assertEqual(strokes[0].outcome, "fault")
+        self.assertEqual(strokes[1].shot_type, "serve")
+        self.assertTrue(strokes[-1].terminal)
+
+    def test_first_fault_second_fault_stops_point(self):
+        strokes = parse_point(first_serve="6d", second_serve="4d@", server_is_player1=True)
+        self.assertEqual(len(strokes), 2)
+        self.assertEqual(strokes[0].outcome, "fault")
+        self.assertEqual(strokes[1].outcome, "double fault (unforced)")
+        self.assertTrue(strokes[1].terminal)
+
+    def test_empty_first_serve_uses_second_only(self):
+        strokes = parse_point(first_serve="", second_serve="4f3", server_is_player1=False)
+        self.assertEqual(len(strokes), 2)  # serve + return
+        self.assertEqual(strokes[0].shot_type, "serve")
+        self.assertEqual(strokes[0].player_to_hit, 2)  # server is player 2 in this case
+        self.assertFalse(strokes[-1].terminal)
+
+    def test_time_violation_then_second_serve(self):
+        strokes = parse_point(first_serve="V", second_serve="4f2", server_is_player1=True)
+        self.assertEqual(strokes[0].shot_type, "time violation")
+        self.assertFalse(strokes[0].terminal)
+        self.assertEqual(strokes[1].shot_type, "serve")
 
 
 if __name__ == "__main__":
