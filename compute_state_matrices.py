@@ -91,6 +91,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="append",
         help="Player name to include (can be specified multiple times)",
     )
+    parser.add_argument(
+        "--per_player",
+        action="store_true",
+        help="Generate matrices for each player individually (ignores --include_players).",
+    )
     return parser.parse_args(argv)
 
 
@@ -98,6 +103,25 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
 
     df = pd.read_csv(args.input)
+
+    # Per-player mode: loop over unique player_name values.
+    if args.per_player:
+        players = sorted(df["player_name"].dropna().unique())
+        if not players:
+            print("No player_name values found.")
+            return 1
+        for p in players:
+            sub = df[df["player_name"] == p]
+            out_dir = Path(args.output_dir) / f"player_{p.replace(' ', '_')}"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            result_mat = compute_result_matrix(sub)
+            cont_mat = compute_continuation_matrix(sub)
+            write_matrix(result_mat, out_dir / "matrix_result.csv")
+            write_matrix(cont_mat, out_dir / "matrix_continue.csv")
+            print(f"Wrote matrices for {p} to {out_dir}")
+        return 0
+
+    # Single run (optionally filtered)
     if args.include_players:
         df = df[df["player_name"].isin(args.include_players)]
         if df.empty:
@@ -109,7 +133,6 @@ def main(argv: list[str]) -> int:
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
     write_matrix(result_mat, out_dir / "matrix_result.csv")
     write_matrix(cont_mat, out_dir / "matrix_continue.csv")
     print(f"Wrote matrices to {out_dir}")
