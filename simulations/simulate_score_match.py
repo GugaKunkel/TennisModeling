@@ -27,6 +27,27 @@ def coerce_probs(row: pd.Series) -> Tuple[np.ndarray, list[str]]:
         return np.zeros(len(labels)), labels
     return probs / total, labels
 
+def merge_matrices(primary: pd.DataFrame | None, fallbacks: list[pd.DataFrame | None]) -> pd.DataFrame:
+    candidates = [m for m in [primary, *fallbacks] if m is not None and not m.empty]
+    if not candidates:
+        return pd.DataFrame()
+    all_states = sorted(set().union(*[set(m.index) for m in candidates]))
+    all_cols = sorted(set().union(*[set(m.columns) for m in candidates]))
+    merged = pd.DataFrame(0.0, index=all_states, columns=all_cols)
+    for state in all_states:
+        for idx, m in enumerate(candidates):
+            if state in m.index and m.loc[state].sum() > 0:
+                row = m.loc[state].reindex(all_cols).fillna(0.0)
+                total = row.sum()
+                if total > 0:
+                    merged.loc[state] = row / total
+                    if primary is None or m is not primary:
+                        source = "primary" if m is primary else f"fallback_{idx}"
+                        print(f"Filling state '{state}' from {source}")
+                break
+    merged.index.name = ""
+    return merged
+
 def sample_next_state(state: str, matrix: pd.DataFrame, rng: np.random.Generator) -> str | None:
     if state not in matrix.index:
         return None
@@ -185,12 +206,33 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--matches", type=int, default=1, help="Number of matches.")
     parser.add_argument("--best_of", type=int, default=5, help="Number of sets in match (3 or 5).")
     parser.add_argument("--seed", type=int, default=None, help="Base RNG seed.")
+    parser.add_argument(
+        "--base_dir",
+        help="Optional base directory containing bin_vs_bin/bin_vs_all/global score matrices for fallbacks.",
+    )
     return parser.parse_args(argv)
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    mat_a = load_score_matrix(Path(args.server_a_matrix))
-    mat_b = load_score_matrix(Path(args.server_b_matrix))
+    primary_a = load_score_matrix(Path(args.server_a_matrix))
+    primary_b = load_score_matrix(Path(args.server_b_matrix))
+
+    if args.base_dir:
+        base = Path(args.base_dir)
+        def load_fb(h_bin: str | None, o_bin: str | None):
+            if h_bin and o_bin:
+                bin_bin = load_score_matrix(base / "bin_vs_bin" / f"{h_bin}_vs_{o_bin}" / "score_matrix.csv") if (base / "bin_vs_bin" / f"{h_bin}_vs_{o_bin}" / "score_matrix.csv").exists() else None
+            else:
+                bin_bin = None
+            bin_all = load_score_matrix(base / "bin_vs_all" / h_bin / "score_matrix.csv") if h_bin and (base / "bin_vs_all" / h_bin / "score_matrix.csv").exists() else None
+            glob = load_score_matrix(base / "global" / "score_matrix.csv") if (base / "global" / "score_matrix.csv").exists() else None
+            return [bin_bin, bin_all, glob]
+
+        mat_a = merge_matrices(primary_a, load_fb(args.player_a_bin, args.player_b_bin))
+        mat_b = merge_matrices(primary_b, load_fb(args.player_b_bin, args.player_a_bin))
+    else:
+        mat_a = primary_a
+        mat_b = primary_b
     player_a = Path(args.server_a_matrix).stem.replace("_filled_score_matrix", "").replace("_", " ")
     player_b = Path(args.server_b_matrix).stem.replace("_filled_score_matrix", "").replace("_", " ")
     base_seed = args.seed
