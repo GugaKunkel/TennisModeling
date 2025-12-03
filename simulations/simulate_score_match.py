@@ -27,7 +27,9 @@ def coerce_probs(row: pd.Series) -> Tuple[np.ndarray, list[str]]:
         return np.zeros(len(labels)), labels
     return probs / total, labels
 
-def merge_matrices(primary: pd.DataFrame | None, fallbacks: list[pd.DataFrame | None]) -> pd.DataFrame:
+def merge_matrices(
+    primary: pd.DataFrame | None, fallbacks: list[pd.DataFrame | None], label: str | None = None
+) -> pd.DataFrame:
     candidates = [m for m in [primary, *fallbacks] if m is not None and not m.empty]
     if not candidates:
         return pd.DataFrame()
@@ -41,9 +43,10 @@ def merge_matrices(primary: pd.DataFrame | None, fallbacks: list[pd.DataFrame | 
                 total = row.sum()
                 if total > 0:
                     merged.loc[state] = row / total
-                    if primary is None or m is not primary:
-                        source = "primary" if m is primary else f"fallback_{idx}"
-                        print(f"Filling state '{state}' from {source}")
+                    # if primary is None or m is not primary:
+                        # source = "primary" if m is primary else f"fallback_{idx}"
+                        # who = f" [{label}]" if label else ""
+                        # print(f"Filling state '{state}' from {source}{who}")
                 break
     merged.index.name = ""
     return merged
@@ -212,10 +215,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     return parser.parse_args(argv)
 
+def friendly_player_name(path: Path) -> str:
+    stem = path.stem.replace("_filled_score_matrix", "").replace("_", " ")
+    if stem.lower() == "score matrix":
+        stem = path.parent.name.replace("player_", "").replace("_", " ")
+    return stem
+
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     primary_a = load_score_matrix(Path(args.server_a_matrix))
     primary_b = load_score_matrix(Path(args.server_b_matrix))
+    player_a = friendly_player_name(Path(args.server_a_matrix))
+    player_b = friendly_player_name(Path(args.server_b_matrix))
 
     if args.base_dir:
         base = Path(args.base_dir)
@@ -228,13 +239,11 @@ def main(argv: list[str]) -> int:
             glob = load_score_matrix(base / "global" / "score_matrix.csv") if (base / "global" / "score_matrix.csv").exists() else None
             return [bin_bin, bin_all, glob]
 
-        mat_a = merge_matrices(primary_a, load_fb(args.player_a_bin, args.player_b_bin))
-        mat_b = merge_matrices(primary_b, load_fb(args.player_b_bin, args.player_a_bin))
+        mat_a = merge_matrices(primary_a, load_fb(args.player_a_bin, args.player_b_bin), label=player_a)
+        mat_b = merge_matrices(primary_b, load_fb(args.player_b_bin, args.player_a_bin), label=player_b)
     else:
         mat_a = primary_a
         mat_b = primary_b
-    player_a = Path(args.server_a_matrix).stem.replace("_filled_score_matrix", "").replace("_", " ")
-    player_b = Path(args.server_b_matrix).stem.replace("_filled_score_matrix", "").replace("_", " ")
     base_seed = args.seed
     wins = {player_a: 0, player_b: 0}
     for i in range(args.matches):
