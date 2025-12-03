@@ -44,9 +44,9 @@ def merge_matrices(
                 if total > 0:
                     merged.loc[state] = row / total
                     # if primary is None or m is not primary:
-                        # source = "primary" if m is primary else f"fallback_{idx}"
-                        # who = f" [{label}]" if label else ""
-                        # print(f"Filling state '{state}' from {source}{who}")
+                    #     source = "primary" if m is primary else f"fallback_{idx}"
+                    #     who = f" [{label}]" if label else ""
+                    #     print(f"Filling state '{state}' from {source}{who}")
                 break
     merged.index.name = ""
     return merged
