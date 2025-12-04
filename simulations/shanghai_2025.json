@@ -1,0 +1,37 @@
+[
+  { "player1": "Corentin Moutet", "player2": "Learner Tien", "best_of": 3 },
+  { "player1": "Arthur Cazaux", "player2": "Cameron Norrie", "best_of": 3 },
+  { "player1": "Alejandro Davidovich Fokina", "player2": "Matteo Arnaldi", "best_of": 3 },
+  { "player1": "Dalibor Svrcina", "player2": "Daniil Medvedev", "best_of": 3 },
+  { "player1": "Karen Khachanov", "player2": "Juncheng Shang", "best_of": 3 },
+  { "player1": "Nuno Borges", "player2": "Aleksandar Vukic", "best_of": 3 },
+  { "player1": "Brandon Nakashima", "player2": "Kamil Majchrzak", "best_of": 3 },
+  { "player1": "Camilo Ugo Carabelli", "player2": "Alex De Minaur", "best_of": 3 },
+
+  { "player1": "Alexander Zverev", "player2": "Valentin Royer", "best_of": 3 },
+  { "player1": "Arthur Rinderknech", "player2": "Alex Michelsen", "best_of": 3 },
+  { "player1": "Denis Shapovalov", "player2": "Christopher O'Connell", "best_of": 3 },
+  { "player1": "Quentin Halys", "player2": "Jiri Lehecka", "best_of": 3 },
+  { "player1": "Felix Auger-Aliassime", "player2": "Alejandro Tabilo", "best_of": 3 },
+  { "player1": "Jesper de Jong", "player2": "Jakub Mensik", "best_of": 3 },
+  { "player1": "Luciano Darderi", "player2": "", "best_of": 3 },
+  { "player1": "Francisco Comesana", "player2": "Lorenzo Musetti", "best_of": 3 },
+
+  { "player1": "Ben Shelton", "player2": "David Goffin", "best_of": 3 },
+  { "player1": "Benjamin Bonzi", "player2": "Gabriel Diallo", "best_of": 3 },
+  { "player1": "Francisco Cerundolo", "player2": "Adrian Mannarino", "best_of": 3 },
+  { "player1": "Zizou Bergs", "player2": "Casper Ruud", "best_of": 3 },
+  { "player1": "Andrey Rublev", "player2": "Yoshihito Nishioka", "best_of": 3 },
+  { "player1": "Jaume Munar", "player2": "Flavio Cobolli", "best_of": 3 },
+  { "player1": "Frances Tiafoe", "player2": "Yannick Hanfmann", "best_of": 3 },
+  { "player1": "Marin Cilic", "player2": "Novak Djokovic", "best_of": 3 },
+
+  { "player1": "Taylor Fritz", "player2": "Fabian Marozsan", "best_of": 3 },
+  { "player1": "Luca Nardi", "player2": "Giovanni Mpetshi Perricard", "best_of": 3 },
+  { "player1": "Ugo Humbert", "player2": "Jordan Thompson", "best_of": 3 },
+  { "player1": "Sebastian Baez", "player2": "Holger Rune", "best_of": 3 },
+  { "player1": "Alexander Bublik", "player2": "Valentin Vacherot", "best_of": 3 },
+  { "player1": "Mattia Bellucci", "player2": "Tomas Machac", "best_of": 3 },
+  { "player1": "Tallon Griekspoor", "player2": "Jenson Brooksby", "best_of": 3 },
+  { "player1": "Daniel Altmaier", "player2": "Jannik Sinner", "best_of": 3 }
+]

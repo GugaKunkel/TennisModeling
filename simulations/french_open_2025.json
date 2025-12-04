@@ -1,0 +1,37 @@
+[
+  { "player1": "Jannik Sinner", "player2": "Richard Gasquet", "best_of": 5 },
+  { "player1": "Jiri Lehecka", "player2": "Alejandro Davidovich Fokina", "best_of": 5 },
+  { "player1": "Andrey Rublev", "player2": "Adam Walton", "best_of": 5 },
+  { "player1": "Jaume Munar", "player2": "Arthur Fils", "best_of": 5 },
+  { "player1": "Alex De Minaur", "player2": "Alexander Bublik", "best_of": 5 },
+  { "player1": "Henrique Rocha", "player2": "Jakub Mensik", "best_of": 5 },
+  { "player1": "Joao Fonseca", "player2": "Pierre-Hugues Herbert", "best_of": 5 },
+  { "player1": "Gael Monfils", "player2": "Jack Draper", "best_of": 5 },
+
+  { "player1": "Alexander Zverev", "player2": "Jesper de Jong", "best_of": 5 },
+  { "player1": "Flavio Cobolli", "player2": "Matteo Arnaldi", "best_of": 5 },
+  { "player1": "Gabriel Diallo", "player2": "Tallon Griekspoor", "best_of": 5 },
+  { "player1": "Alexander Shevchenko", "player2": "Ethan Quinn", "best_of": 5 },
+  { "player1": "Cameron Norrie", "player2": "Federico Agustín Gomez", "best_of": 5 },
+  { "player1": "Jacob Fearnly", "player2": "Ugo Humbert", "best_of": 5 },
+  { "player1": "Denis Shapovalov", "player2": "Filip Misolic", "best_of": 5 },
+  { "player1": "Corentin Moutet", "player2": "Novak Djokovic", "best_of": 5 },
+
+  { "player1": "Lorenzo Musetti", "player2": "Daniel Elahi Galan", "best_of": 5 },
+  { "player1": "Reilly Opelka", "player2": "Mariano Navone", "best_of": 5 },
+  { "player1": "Quentin Halys", "player2": "Miomir Kecmanovic", "best_of": 5 },
+  { "player1": "Emilio Nava", "player2": "Holger Rune", "best_of": 5 },
+  { "player1": "Frances Tiafoe", "player2": "Pablo Carreno Busta", "best_of": 5 },
+  { "player1": "Jenson Brooksby", "player2": "Sebastian Korda", "best_of": 5 },
+  { "player1": "Juan Manuel Cerundolo", "player2": "Hamad Medjedovic", "best_of": 5 },
+  { "player1": "Vit Kopriva", "player2": "Daniel Altmaier", "best_of": 5 },
+
+  { "player1": "Casper Ruud", "player2": "Nuno Borges", "best_of": 5 },
+  { "player1": "Alejandro Tabilo", "player2": "Alexi Popyrin", "best_of": 5 },
+  { "player1": "Karen Khachanov", "player2": "Sebastian Ofner", "best_of": 5 },
+  { "player1": "Marton Fucsovics", "player2": "Tommy Paul", "best_of": 5 },
+  { "player1": "Ben Shelton", "player2": "Hugo Gaston", "best_of": 5 },
+  { "player1": "Pedro Martinez", "player2": "Stefanos Tsitsipas", "best_of": 5 },
+  { "player1": "Giovanni Mpetshi Perricard", "player2": "Damir Dzumhur", "best_of": 5 },
+  { "player1": "Fabian Marozsan", "player2": "Carlos Alcaraz", "best_of": 5 }
+]
