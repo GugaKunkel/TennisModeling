@@ -216,9 +216,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 def friendly_player_name(path: Path) -> str:
-    stem = path.stem.replace("_filled_score_matrix", "").replace("_", " ")
+    stem = path.stem.replace("_filled_score_matrix", "").replace("_", " ").replace("-", " ")
     if stem.lower() == "score matrix":
-        stem = path.parent.name.replace("player_", "").replace("_", " ")
+        stem = path.parent.name.replace("player_", "").replace("_", " ").replace("-", " ")
     return stem
 
 def main(argv: list[str]) -> int:
