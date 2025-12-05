@@ -1,4 +1,3 @@
-from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
@@ -114,14 +113,22 @@ def build_score_transitions(df: pd.DataFrame, use_bins: bool = False) -> pd.Data
     counts = subset.groupby(["state", "new_state"]).size().reset_index(name="count")
     return counts
 
-def build_score_matrix(transitions: pd.DataFrame) -> pd.DataFrame:
-    if transitions.empty:
+def build_score_matrix(transitions: pd.DataFrame, all_states: Iterable[str] | None = None) -> pd.DataFrame:
+    """Build a square probability matrix. If all_states is None, use union of observed states."""
+    if all_states is None:
+        states = sorted(set(transitions["state"].unique()) | set(transitions["new_state"].unique()))
+    else:
+        states = sorted(set(all_states))
+    if not states:
         return pd.DataFrame()
-    states = sorted(transitions["state"].unique())
-    next_states = sorted(transitions["new_state"].unique())
+    if transitions.empty:
+        zero_df = pd.DataFrame(0.0, index=states, columns=states)
+        zero_df.index.name = ""
+        return zero_df
+
     counts = transitions.pivot_table(
         index="state", columns="new_state", values="count", aggfunc="sum", fill_value=0
-    ).reindex(index=states, columns=next_states, fill_value=0)
+    ).reindex(index=states, columns=states, fill_value=0)
     probs = counts.div(counts.sum(axis=1).replace(0, np.nan), axis=0).fillna(0.0)
     probs.index.name = ""
     return probs
@@ -131,11 +138,11 @@ def write_matrix(df: pd.DataFrame, path: Path) -> None:
     out.insert(0, "", out.index)
     out.to_csv(path, index=False)
 
-def save_matrices(df: pd.DataFrame, out_dir: Path, use_bins: bool) -> None:
+def save_matrices(df: pd.DataFrame, out_dir: Path, use_bins: bool, all_states: Iterable[str]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     transitions = build_score_transitions(df, use_bins=use_bins)
     transitions.to_csv(out_dir / "score_transitions.csv", index=False)
-    matrix = build_score_matrix(transitions)
+    matrix = build_score_matrix(transitions, all_states=all_states)
     write_matrix(matrix, out_dir / "score_matrix.csv")
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -152,6 +159,7 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     df = pd.read_csv(args.input)
     use_bins = bool(args.rankings_csv)
+    all_states: Iterable[str] | None = None
     if use_bins:
         rank_map = load_rankings(Path(args.rankings_csv))
         match_files = [
@@ -162,6 +170,11 @@ def main(argv: list[str]) -> int:
         ]
         match_map = load_match_map(match_files)
         df = attach_bins(df, rank_map, match_map)
+        global_transitions = build_score_transitions(df, use_bins=True)
+        all_states = sorted(set(global_transitions["state"].unique()) | set(global_transitions["new_state"].unique()))
+    else:
+        global_transitions = build_score_transitions(df, use_bins=False)
+        all_states = sorted(set(global_transitions["state"].unique()) | set(global_transitions["new_state"].unique()))
 
     out_base = Path(args.output_dir)
     out_base.mkdir(parents=True, exist_ok=True)
@@ -170,37 +183,29 @@ def main(argv: list[str]) -> int:
         bins = args.bins if args.bins else [label for _, _, label in BIN_EDGES] + [DEFAULT_BIN]
 
         # Global
-        save_matrices(df, out_base / "global", use_bins=True)
+        save_matrices(df, out_base / "global", use_bins=True, all_states=all_states)
 
         # Bin vs bin
         for hb in bins:
             for ob in bins:
                 sub = df[(df["player_bin"] == hb) & (df["opponent_bin"] == ob)]
-                if sub.empty:
-                    continue
-                save_matrices(sub, out_base / "bin_vs_bin" / f"{hb}_vs_{ob}", use_bins=True)
+                save_matrices(sub, out_base / "bin_vs_bin" / f"{hb}_vs_{ob}", use_bins=True, all_states=all_states)
 
         # Bin vs all
         for hb in bins:
             sub = df[df["player_bin"] == hb]
-            if sub.empty:
-                continue
-            save_matrices(sub, out_base / "bin_vs_all" / hb, use_bins=True)
+            save_matrices(sub, out_base / "bin_vs_all" / hb, use_bins=True, all_states=all_states)
 
         # Per player
         for player in sorted(df["player_name_norm"].dropna().unique()):
             sub = df[df["player_name_norm"] == player]
-            if sub.empty:
-                continue
-            save_matrices(sub, out_base / "player" / f"player_{player.replace(' ', '_')}", use_bins=True)
+            save_matrices(sub, out_base / "player" / f"player_{player.replace(' ', '_')}", use_bins=True, all_states=all_states)
     else:
         # No bins: just global and per-player matrices with plain score states
-        save_matrices(df, out_base / "global", use_bins=False)
+        save_matrices(df, out_base / "global", use_bins=False, all_states=all_states)
         for player in sorted(df["player_name"].dropna().unique()):
             sub = df[df["player_name"] == player]
-            if sub.empty:
-                continue
-            save_matrices(sub, out_base / "player" / f"player_{player.replace(' ', '_')}", use_bins=False)
+            save_matrices(sub, out_base / "player" / f"player_{player.replace(' ', '_')}", use_bins=False, all_states=all_states)
 
     print(f"Wrote score matrices to {out_base}")
     return 0
