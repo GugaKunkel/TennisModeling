@@ -25,12 +25,13 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
         self.assertEqual(with_player, "P1|serve_side|BOS|dir=0")
 
     def test_score_helpers(self):
-        self.assertEqual(bst.canonical_point_score("15-30", True), "15-30")
-        self.assertEqual(bst.canonical_point_score("0-15", False), "15-0")
-        self.assertEqual(bst.canonical_point_score("7-6", True), "TB_7-6")
+        self.assertEqual(bst.canonical_point_score("15-30"), "15-30")
+        self.assertEqual(bst.canonical_point_score("0-15"), "0-15")
+        self.assertEqual(bst.canonical_point_score("7-6", is_tiebreak=True), "TB_7-6")
         self.assertEqual(bst.advance_point_score("40-0", True), "game_server")
         self.assertEqual(bst.advance_point_score("40-30", False), "40-40")
         self.assertEqual(bst.advance_point_score("Ad-Out", True), "40-40")
+        self.assertEqual(bst.canonical_point_score("0-0", is_tiebreak=True), "TB_0-0")
 
     def test_load_player_map(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -197,6 +198,128 @@ class BuildStateTransitionsDataTests(unittest.TestCase):
         self.assertEqual(first["server_flag"], "serve_side")
         self.assertEqual(first["point_score"], "0-0")
         self.assertIn("score=0-0", first["state"])
+
+    def test_tiebreak_detection_uses_games_and_flag(self):
+        # TbSet true and both games at 6 => treat as tiebreak and canonicalize to TB_0-0
+        row = pd.Series(
+            {
+                "match_id": "tb1",
+                "Pt": 1,
+                "Pts": "0-0",
+                "Svr": 1,
+                "Gm1": 6,
+                "Gm2": 6,
+                "TbSet": True,
+                "1st": "6#",
+                "2nd": "",
+            }
+        )
+        rows = bst.transitions_for_point(
+            row=row, match_id="tb1", player1="A", player2="B", state_fields=bst.DEFAULT_STATE_FIELDS
+        )
+        self.assertTrue(rows)
+        self.assertEqual(rows[0]["point_score"], "TB_0-0")
+        self.assertIn("score=TB_0-0", rows[0]["state"])
+
+        # TbSet true but games not 6-6 => should not be tiebreak
+        row["Gm1"], row["Gm2"] = 5, 6
+        rows2 = bst.transitions_for_point(
+            row=row, match_id="tb2", player1="A", player2="B", state_fields=bst.DEFAULT_STATE_FIELDS
+        )
+        self.assertTrue(rows2)
+        self.assertEqual(rows2[0]["point_score"], "0-0")
+        self.assertIn("score=0-0", rows2[0]["state"])
+
+    def test_server_first_scores_from_points_file(self):
+        points_path = Path("data/charting-m-points-2020s.csv")
+        matches_path = Path("data/charting-m-matches.csv")
+        if not points_path.exists() or not matches_path.exists():
+            self.skipTest("Charting files not available.")
+
+        points_df = pd.read_csv(points_path)
+        matches_df = pd.read_csv(matches_path)
+
+        # Use early rows 1-12 to validate server-first interpretation.
+        sample = points_df.iloc[:12]
+        for _, row in sample.iterrows():
+            match_row = matches_df[matches_df["match_id"] == row["match_id"]]
+            if match_row.empty:
+                continue
+            p1 = str(match_row.iloc[0]["Player 1"])
+            p2 = str(match_row.iloc[0]["Player 2"])
+            transitions = bst.transitions_for_point(
+                row=row,
+                match_id=row["match_id"],
+                player1=p1,
+                player2=p2,
+                state_fields=bst.DEFAULT_STATE_FIELDS,
+            )
+            if not transitions:
+                continue
+            first = transitions[0]
+            # Ensure the point_score reflects the Pts string as server-first (no swapping when Svr=2).
+            expected = bst.canonical_point_score(row["Pts"])
+            self.assertEqual(first["point_score"], expected)
+            self.assertIn(f"score={expected}", first["state"])
+
+    def test_tiebreak_rows_are_server_first(self):
+        points_path = Path("data/charting-m-points-2020s.csv")
+        matches_path = Path("data/charting-m-matches.csv")
+        if not points_path.exists() or not matches_path.exists():
+            self.skipTest("Charting files not available.")
+
+        points_df = pd.read_csv(points_path)
+        matches_df = pd.read_csv(matches_path)
+        sample = points_df.iloc[289:293]  # tiebreak rows with alternating servers
+
+        for _, row in sample.iterrows():
+            match_row = matches_df[matches_df["match_id"] == row["match_id"]]
+            if match_row.empty:
+                continue
+            p1 = str(match_row.iloc[0]["Player 1"])
+            p2 = str(match_row.iloc[0]["Player 2"])
+            transitions = bst.transitions_for_point(
+                row=row,
+                match_id=row["match_id"],
+                player1=p1,
+                player2=p2,
+                state_fields=bst.DEFAULT_STATE_FIELDS,
+            )
+            self.assertTrue(transitions)
+            first = transitions[0]
+            expected = bst.canonical_point_score(row["Pts"], is_tiebreak=True)
+            self.assertEqual(first["point_score"], expected)
+            self.assertIn(f"score={expected}", first["state"])
+            self.assertEqual(first["server_flag"], "serve_side")
+
+    def test_tiebreak_reorients_for_next_server(self):
+        row = pd.Series(
+            {
+                "match_id": "tb-reorient",
+                "Pt": 1,
+                "Pts": "0-0",
+                "Svr": 1,
+                "Gm1": 6,
+                "Gm2": 6,
+                "TbSet": True,
+                "1st": "6#",
+                "2nd": "",
+                "PtWinner": 1,
+            }
+        )
+        rows = bst.transitions_for_point(
+            row=row,
+            match_id="tb-reorient",
+            player1="A",
+            player2="B",
+            state_fields=bst.DEFAULT_STATE_FIELDS,
+        )
+        self.assertEqual(len(rows), 1)
+        first = rows[0]
+        self.assertEqual(first["point_score"], "TB_0-0")
+        # Server (P1) wins first point; next server flips, so point_score_after should be TB_0-1 (server-first for next point).
+        self.assertEqual(first["point_score_after"], "TB_0-1")
+        self.assertIn("score=TB_0-1", first["new_state"])
 
 
 if __name__ == "__main__":
