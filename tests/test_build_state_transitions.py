@@ -1,19 +1,8 @@
 import tempfile
 import unittest
 from pathlib import Path
-
 import pandas as pd
-
-from build_state_transitions import (
-    DEFAULT_STATE_FIELDS,
-    advance_point_score,
-    canonical_point_score,
-    collect_input_files,
-    load_player_map,
-    process_file,
-    serialize_state,
-    transitions_for_point,
-)
+import build_state_transitions as bst
 
 
 class BuildStateTransitionsUnitTests(unittest.TestCase):
@@ -28,20 +17,20 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
             "point_score": "0-0",
             "point_start_serve": "1st",
         }
-        default_state = serialize_state(DEFAULT_STATE_FIELDS, ctx)
+        default_state = bst.serialize_state(bst.DEFAULT_STATE_FIELDS, ctx)
         self.assertEqual(default_state, "serve_side|BOS|dir=0|rbin=0|score=0-0|start_srv=1st")
-        with_player = serialize_state(
+        with_player = bst.serialize_state(
             ["player_label", "server_flag", "prev_family", "prev_direction"], ctx
         )
         self.assertEqual(with_player, "P1|serve_side|BOS|dir=0")
 
     def test_score_helpers(self):
-        self.assertEqual(canonical_point_score("15-30", True), "15-30")
-        self.assertEqual(canonical_point_score("0-15", False), "15-0")
-        self.assertEqual(canonical_point_score("7-6", True), "TB_7-6")
-        self.assertEqual(advance_point_score("40-0", True), "game_server")
-        self.assertEqual(advance_point_score("40-30", False), "40-40")
-        self.assertEqual(advance_point_score("Ad-Out", True), "40-40")
+        self.assertEqual(bst.canonical_point_score("15-30", True), "15-30")
+        self.assertEqual(bst.canonical_point_score("0-15", False), "15-0")
+        self.assertEqual(bst.canonical_point_score("7-6", True), "TB_7-6")
+        self.assertEqual(bst.advance_point_score("40-0", True), "game_server")
+        self.assertEqual(bst.advance_point_score("40-30", False), "40-40")
+        self.assertEqual(bst.advance_point_score("Ad-Out", True), "40-40")
 
     def test_load_player_map(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -54,7 +43,7 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
             )
             path = base / "charting-m-matches.csv"
             df.to_csv(path, index=False)
-            mapping = load_player_map([base])
+            mapping = bst.load_player_map([base])
             self.assertEqual(mapping["mA"], ("Alice", "Bob"))
             self.assertEqual(mapping["mB"], ("Cara", "Dan"))
 
@@ -64,7 +53,7 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
             (base / "a.xlsm").write_text("")
             (base / "b.xlsx").write_text("")
             (base / "ignore.txt").write_text("")
-            files = collect_input_files([str(base)])
+            files = bst.collect_input_files([str(base)])
             names = sorted(f.name for f in files)
             self.assertEqual(names, ["a.xlsm", "b.xlsx"])
 
@@ -80,7 +69,7 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
             }
         )
         state_fields = ["player_label", "server_flag", "prev_family", "prev_direction"]
-        rows = transitions_for_point(
+        rows = bst.transitions_for_point(
             row=row,
             match_id="m1",
             player1="Alice",
@@ -95,7 +84,6 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
         self.assertEqual(r0["new_state"].split("|")[0], "P2")  # next player label present
 
     def test_process_file_uses_player_map(self):
-        # Build a tiny points CSV on disk
         points_df = pd.DataFrame(
             [
                 {
@@ -112,7 +100,7 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
             points_path = Path(tmpdir) / "points.csv"
             points_df.to_csv(points_path, index=False)
             player_map = {"match-1": ("Player One", "Player Two")}
-            rows = process_file(points_path, DEFAULT_STATE_FIELDS, player_map)
+            rows = bst.process_file(points_path, bst.DEFAULT_STATE_FIELDS, player_map)
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["player_name"], "Player One")
             self.assertEqual(rows[0]["player_label"], "P1")
@@ -130,15 +118,14 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
                 "2nd": "4f2n@",
             }
         )
-        rows = transitions_for_point(
+        rows = bst.transitions_for_point(
             row=row,
             match_id="m2",
             player1="Alice",
             player2="Bob",
-            state_fields=DEFAULT_STATE_FIELDS,
+            state_fields=bst.DEFAULT_STATE_FIELDS,
         )
-        # Expect fault + second serve + rally finisher
-        self.assertEqual(len(rows), 3)
+        self.assertEqual(len(rows), 3)  # fault + second serve + finisher
         self.assertEqual(rows[0]["outcome_raw"], "fault")
         self.assertEqual(rows[1]["shot_type"], "serve")
         self.assertTrue(rows[-1]["is_terminal"])
@@ -154,8 +141,8 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
                 "2nd": "",
             }
         )
-        rows = transitions_for_point(
-            bad_row, match_id="m3", player1="X", player2="Y", state_fields=DEFAULT_STATE_FIELDS
+        rows = bst.transitions_for_point(
+            bad_row, match_id="m3", player1="X", player2="Y", state_fields=bst.DEFAULT_STATE_FIELDS
         )
         self.assertEqual(rows, [])
 
@@ -170,12 +157,46 @@ class BuildStateTransitionsUnitTests(unittest.TestCase):
                 "2nd": "",
             }
         )
-        rows = transitions_for_point(
-            row, match_id="m4", player1="P1", player2="P2", state_fields=DEFAULT_STATE_FIELDS
+        rows = bst.transitions_for_point(
+            row, match_id="m4", player1="P1", player2="P2", state_fields=bst.DEFAULT_STATE_FIELDS
         )
         self.assertEqual(len(rows), 2)
         self.assertFalse(rows[0]["is_terminal"])
         self.assertFalse(rows[1]["is_terminal"])
+
+class BuildStateTransitionsDataTests(unittest.TestCase):
+    def test_server_assignment_for_specific_match(self):
+        match_id = "20250610-M-ITF_Martos-Q2-Preston_Stearns-Alejandro_Lopez_Escribano"
+        points_path = Path("data/charting-m-points-2020s.csv")
+        matches_path = Path("data/charting-m-matches.csv")
+
+        if not points_path.exists() or not matches_path.exists():
+            self.skipTest("Required charting files not available.")
+
+        points_df = pd.read_csv(points_path)
+        matches_df = pd.read_csv(matches_path)
+
+        row = points_df[points_df["match_id"] == match_id].iloc[0]
+        match_row = matches_df[matches_df["match_id"] == match_id].iloc[0]
+
+        player1 = str(match_row["Player 1"])
+        player2 = str(match_row["Player 2"])
+
+        transitions = bst.transitions_for_point(
+            row=row,
+            match_id=match_id,
+            player1=player1,
+            player2=player2,
+            state_fields=bst.DEFAULT_STATE_FIELDS,
+        )
+
+        self.assertTrue(transitions, "Expected transitions for the point.")
+        first = transitions[0]
+        self.assertEqual(first["player_label"], "P1")
+        self.assertEqual(first["player_name"], "Preston Stearns")
+        self.assertEqual(first["server_flag"], "serve_side")
+        self.assertEqual(first["point_score"], "0-0")
+        self.assertIn("score=0-0", first["state"])
 
 
 if __name__ == "__main__":
