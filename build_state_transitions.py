@@ -1,4 +1,3 @@
-from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
@@ -65,14 +64,23 @@ def load_points_table(path: Path) -> pd.DataFrame:
         return next(iter(sheets.values()))
 
 
-def canonical_point_score(raw_score: str | float | None, server_is_p1: bool) -> str:
-    """Normalize raw Pts strings into the canonical server-first representation."""
+def _coerce_bool(val) -> bool:
+    if isinstance(val, bool):
+        return val
+    if pd.isna(val):
+        return False
+    s = str(val).strip().lower()
+    return s in {"true", "1", "yes", "y"}
+
+
+def canonical_point_score(raw_score: str | float | None, is_tiebreak: bool = False) -> str:
+    """Normalize raw Pts strings, assuming score is listed server-first in the source data."""
     if raw_score is None or (isinstance(raw_score, float) and pd.isna(raw_score)):
-        return "0-0"
+        return "TB_0-0" if is_tiebreak else "0-0"
 
     score_str = str(raw_score).strip()
     if not score_str:
-        return "0-0"
+        return "TB_0-0" if is_tiebreak else "0-0"
 
     parts = score_str.split("-")
     if len(parts) != 2:
@@ -80,20 +88,18 @@ def canonical_point_score(raw_score: str | float | None, server_is_p1: bool) -> 
 
     left, right = parts[0].strip(), parts[1].strip()
     normal_tokens = {"0", "15", "30", "40", "AD", "A"}
-    if left.upper() not in normal_tokens or right.upper() not in normal_tokens:
+    left_up, right_up = left.upper(), right.upper()
+
+    if is_tiebreak or left_up not in normal_tokens or right_up not in normal_tokens:
         try:
             l_val = int(float(left))
             r_val = int(float(right))
         except ValueError:
             return score_str
-        server_val = l_val if server_is_p1 else r_val
-        ret_val = r_val if server_is_p1 else l_val
-        return f"TB_{server_val}-{ret_val}"
+        return f"TB_{l_val}-{r_val}"
 
-    server_token = left if server_is_p1 else right
-    return_token = right if server_is_p1 else left
-    server_token = server_token.upper()
-    return_token = return_token.upper()
+    server_token = left_up
+    return_token = right_up
 
     if server_token in {"AD", "A"}:
         return "Ad-In"
@@ -102,6 +108,29 @@ def canonical_point_score(raw_score: str | float | None, server_is_p1: bool) -> 
 
     return f"{server_token}-{return_token}"
 
+def _parse_tb_score(score: str) -> tuple[int, int] | None:
+    if not isinstance(score, str) or not score.startswith("TB_"):
+        return None
+    try:
+        raw = score.replace("TB_", "")
+        left, right = raw.split("-")
+        return int(left), int(right)
+    except Exception:
+        return None
+
+def _tb_initial_server_is_p1(current_server_is_p1: bool, point_index: int) -> bool:
+    """Infer initial tiebreak server given current server at point_index."""
+    if point_index == 0:
+        return current_server_is_p1
+    block = (point_index - 1) // 2
+    return current_server_is_p1 if block % 2 == 1 else not current_server_is_p1
+
+def _tb_server_for_index(initial_server_is_p1: bool, point_index: int) -> bool:
+    """Server (is P1) for a tiebreak point index (0-based)."""
+    if point_index == 0:
+        return initial_server_is_p1
+    block = (point_index - 1) // 2
+    return initial_server_is_p1 if block % 2 == 1 else not initial_server_is_p1
 
 def advance_point_score(score: str, winner_is_server: bool) -> str:
     """Return the server-first score after awarding a point to the winner."""
@@ -234,7 +263,6 @@ def transitions_for_point(
         server = int(server_val)
     except Exception:
         server = 1
-    returner = 2 if server == 1 else 1
 
     first_code = clean_code(row.get("1st"))
     second_code = clean_code(row.get("2nd"))
@@ -251,7 +279,20 @@ def transitions_for_point(
 
     point_id = row.get("Pt")
     raw_score = row.get("Pts")
-    point_score = canonical_point_score(raw_score, server_is_p1=(server == 1))
+    tb_flag = _coerce_bool(row.get("TbSet"))
+
+    def is_tb_row(r: pd.Series) -> bool:
+        if not tb_flag:
+            return False
+        try:
+            gm1 = int(float(r.get("Gm1")))
+            gm2 = int(float(r.get("Gm2")))
+        except Exception:
+            return False
+        return gm1 == 6 and gm2 == 6
+
+    is_tb = is_tb_row(row)
+    point_score = canonical_point_score(raw_score, is_tiebreak=is_tb)
     point_winner_raw = row.get("PtWinner")
     point_winner = int(point_winner_raw) if pd.notna(point_winner_raw) else None
 
@@ -290,6 +331,16 @@ def transitions_for_point(
         point_score_after = point_score
         if shot.terminal and winner_id in (1, 2):
             point_score_after = advance_point_score(point_score, winner_is_server=(winner_id == server))
+            if is_tb:
+                before_tb = _parse_tb_score(point_score)
+                after_tb = _parse_tb_score(point_score_after)
+                if before_tb and after_tb:
+                    point_idx = before_tb[0] + before_tb[1]
+                    init_srv_is_p1 = _tb_initial_server_is_p1(server == 1, point_idx)
+                    next_srv_is_p1 = _tb_server_for_index(init_srv_is_p1, point_idx + 1)
+                    if next_srv_is_p1 != (server == 1):
+                        a, b = after_tb
+                        point_score_after = f"TB_{b}-{a}"
 
         next_serve_started = serve_in_started
         next_shots_after_serve = shots_after_serve
