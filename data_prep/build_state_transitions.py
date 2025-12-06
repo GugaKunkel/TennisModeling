@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 import pandas as pd
-from data_parser import ParseError, parse_point
+from data_prep.data_parser import ParseError, parse_point
 
 DEFAULT_STATE_FIELDS = [
     "server_flag",
