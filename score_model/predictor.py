@@ -34,8 +34,17 @@ class TransitionMatrix:
     absorbing: set[int]
     transient: set[int]
 
-    def restrict_to(self, opp_bin: str) -> tuple["TransitionMatrix", str]:
-        """Return a sub-matrix containing only states for a given opponent bin (server perspective)."""
+    def restrict_to(self, opp_bin: str | None) -> tuple["TransitionMatrix", str | None]:
+        """
+        Return a sub-matrix containing only states for a given opponent bin (server perspective).
+        If the matrix is unbinned, returns itself.
+        """
+        has_bins = any("opp_bin=" in label for label in self.states)
+        if not has_bins:
+            return self, None
+        if opp_bin is None:
+            raise ValueError("opp_bin must be provided for binned matrices.")
+
         opp_suffix = f"opp_bin={opp_bin}".lower()
         keep_indices = [i for i, label in enumerate(self.states) if opp_suffix in label.lower()]
         if not keep_indices:
