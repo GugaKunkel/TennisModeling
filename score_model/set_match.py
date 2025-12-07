@@ -37,7 +37,13 @@ def _next_set_server(current_server: str, a_games: int, b_games: int) -> str:
     return _toggle(current_server)
 
 def compute_set_outcome(a_hold: float, b_hold: float, server_first: str = "A") -> SetOutcome:
-    """Return full set score distribution and win probability for Player A."""
+    """
+    Return full set score distribution and win probability for Player A.
+
+    Args:
+        a_hold: Probability Player A holds when serving.
+        b_hold: Probability Player B holds when serving.
+    """
     if server_first not in {"A", "B"}:
         raise ValueError("server_first must be 'A' or 'B'")
 
@@ -60,7 +66,8 @@ def compute_set_outcome(a_hold: float, b_hold: float, server_first: str = "A") -
         if a_games == 6 and b_games == 6:
             return p_tb
 
-        p_win_game = a_hold if next_server == "A" else b_hold
+        # A wins own serve with a_hold; wins B's serve with (1 - b_hold).
+        p_win_game = a_hold if next_server == "A" else 1 - b_hold
         win = p_win_game * dp(a_games + 1, b_games, _toggle(next_server))
         lose = (1 - p_win_game) * dp(a_games, b_games + 1, _toggle(next_server))
         return win + lose
@@ -86,7 +93,7 @@ def compute_set_outcome(a_hold: float, b_hold: float, server_first: str = "A") -
                 score_probs[(6, 7)] = score_probs.get((6, 7), 0.0) + prob * (1 - p_tb)
                 continue
 
-            p_win_game = a_hold if next_server == "A" else b_hold
+            p_win_game = a_hold if next_server == "A" else 1 - b_hold
             p_lose_game = 1 - p_win_game
             next_server_swapped = _toggle(next_server)
 

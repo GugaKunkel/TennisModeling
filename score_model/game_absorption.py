@@ -10,9 +10,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class GameProbabilities:
-    opp_bin: str | None
+    opp_bin: str
     p_server_wins: float
     p_server_loses: float
+    used_bin: str
 
 def absorption_from_state(matrix: TransitionMatrix, start_label: str) -> dict[str, float]:
     """Return absorption probabilities for each absorbing state label from start_label."""
@@ -40,22 +41,32 @@ def absorption_from_state(matrix: TransitionMatrix, start_label: str) -> dict[st
     return {matrix.states[absorbing_idx[i]]: float(start_row[i]) for i in range(len(absorbing_idx))}
 
 
-def game_win_probability(transition_matrix: TransitionMatrix, opp_bin: str | None) -> GameProbabilities:
-    """Probability the (current) server wins the game"""
-    if opp_bin:
-        sub = transition_matrix.restrict_to(opp_bin=opp_bin)
-        start_label = f"0-0|opp_bin={opp_bin}"
-        absorb_probs = absorption_from_state(sub, start_label)
-        p_server_wins = absorb_probs.get(f"game_server|opp_bin={opp_bin}", 0.0)
-        p_server_loses = absorb_probs.get(f"game_returner|opp_bin={opp_bin}", 0.0)
-        return GameProbabilities(opp_bin=opp_bin, p_server_wins=p_server_wins, p_server_loses=p_server_loses)
-    else:
-        absorb_probs = absorption_from_state(transition_matrix, "0-0")
-        p_server_wins = absorb_probs.get("game_server", 0.0)
-        p_server_loses = absorb_probs.get("game_returner", 0.0)
-        if not np.isclose(p_server_wins + p_server_loses, 1.0):
-            raise ValueError("Absorption probabilities do not sum to 1.0")
-        return GameProbabilities(opp_bin=None, p_server_wins=p_server_wins, p_server_loses=p_server_loses)
+def _available_bins(matrix: TransitionMatrix) -> set[str]:
+    """Collect available opponent bins from state labels."""
+    bins: set[str] = set()
+    for label in matrix.states:
+        if "opp_bin=" in label:
+            bins.add(label.split("opp_bin=")[-1])
+    return bins
+
+
+def game_win_probability(transition_matrix: TransitionMatrix, opp_bin: str | None = None) -> GameProbabilities:
+    """
+    Probability the (current) server wins a game vs the given opponent bin.
+    If opp_bin is omitted and only one bin exists in the matrix, that bin is used.
+    """
+    if opp_bin is None:
+        bins = _available_bins(transition_matrix)
+        if len(bins) != 1:
+            raise ValueError(f"opp_bin must be provided; available bins: {sorted(bins)}")
+        opp_bin = next(iter(bins))
+
+    sub, used_bin = transition_matrix.restrict_to(opp_bin=opp_bin)
+    start_label = f"0-0|opp_bin={used_bin}"
+    absorb_probs = absorption_from_state(sub, start_label)
+    p_server_wins = absorb_probs.get(f"game_server|opp_bin={used_bin}", 0.0)
+    p_server_loses = absorb_probs.get(f"game_returner|opp_bin={used_bin}", 0.0)
+    return GameProbabilities(opp_bin=opp_bin, p_server_wins=p_server_wins, p_server_loses=p_server_loses, used_bin=used_bin)
 
 
 __all__ = ["GameProbabilities", "absorption_from_state", "game_win_probability"]

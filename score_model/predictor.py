@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Mapping, Tuple
+from typing import List, Mapping
+import sys
 import argparse
 import numpy as np
 import pandas as pd
@@ -26,12 +27,16 @@ class TransitionMatrix:
     absorbing: set[int]
     transient: set[int]
 
-    def restrict_to(self, opp_bin: str) -> TransitionMatrix:
-        """Return a sub-matrix containing only states for a given opponent bin."""
-        opp_suffix = f"opp_bin={opp_bin}"
-        keep_indices = [i for i, label in enumerate(self.states) if opp_suffix in label]
-        if keep_indices is None:
-            raise ValueError(f"No states found for opp_bin={opp_bin}")
+    def restrict_to(self, opp_bin: str) -> tuple["TransitionMatrix", str]:
+        """Return a sub-matrix containing only states for a given opponent bin (server perspective)."""
+        opp_suffix = f"opp_bin={opp_bin}".lower()
+        keep_indices = [i for i, label in enumerate(self.states) if opp_suffix in label.lower()]
+        if not keep_indices:
+            raise ValueError(f"No states found for opp_bin={opp_bin}.")
+
+        # Preserve the exact bin text from the label to construct start/absorbing labels consistently.
+        sample_label = self.states[keep_indices[0]]
+        chosen_bin = sample_label.split("opp_bin=")[-1]
 
         sub_states = [self.states[i] for i in keep_indices]
         sub_index_map = {s: i for i, s in enumerate(sub_states)}
@@ -40,13 +45,16 @@ class TransitionMatrix:
         sub_absorbing = {sub_index_map[s] for s in sub_states if _is_absorbing_state(s)}
         sub_transient = set(range(len(sub_states))) - sub_absorbing
 
-        return TransitionMatrix(
+        return (
+            TransitionMatrix(
                 states=sub_states,
                 index_for_state=sub_index_map,
                 matrix=sub_matrix,
                 absorbing=sub_absorbing,
                 transient=sub_transient,
-            )
+            ),
+            chosen_bin,
+        )
 
 def _is_absorbing_state(label: str) -> bool:
     return label.startswith("game_server") or label.startswith("game_returner") or label.startswith("set_") or label.startswith("match_")
@@ -130,7 +138,29 @@ def predict_match(
     )
 
 def normaize_filename(name: str) -> str:
-    return name.strip().replace(" ", "_")   
+    return name.strip().replace(" ", "_")
+
+
+def _debug_default_args() -> List[str]:
+    """Defaults so VS Code debugging works without manual args."""
+    repo_root = Path(__file__).resolve().parent.parent
+    base_path = repo_root / "transition_matrices" / "score_rank"
+    return [
+        "--player-a",
+        "Jannik Sinner",
+        "--player-a-bin",
+        "Top10",
+        "--player-b",
+        "Richard Gasquet",
+        "--player-b-bin",
+        "101_200",
+        "--server-first",
+        "A",
+        "--best-of",
+        "5",
+        "--base-path",
+        str(base_path),
+    ]
 
 def cli(argv: List[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Match predictor using score transition matrices.")
@@ -141,7 +171,14 @@ def cli(argv: List[str] | None = None) -> None:
     parser.add_argument("--server-first", choices=["A", "B"], default="A", help="Who serves first (A or B).")
     parser.add_argument("--best-of", type=int, default=5, help="Best-of match length (must be odd).")
     parser.add_argument("--base-path", required=True, type=Path, help="Path to directory containing transition matrices.")
-    args = parser.parse_args(argv)
+
+    argv_list = argv if argv is not None else sys.argv[1:]
+    if not argv_list:
+        argv_list = _debug_default_args()
+        print("No args provided; using debug defaults for VS Code debugging:")
+        print("  ", " ".join(argv_list))
+
+    args = parser.parse_args(argv_list)
 
     pa_path_name = normaize_filename(args.player_a)
     pb_path_name = normaize_filename(args.player_b)
