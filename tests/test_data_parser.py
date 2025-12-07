@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 import unittest
-from data_parser import ParseError, parse_point, parse_rally
+from data_prep.data_parser import ParseError, parse_point, parse_rally
 
 
 DATA_DIR = Path("raw_data")

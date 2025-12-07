@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 import pandas as pd
-import build_state_transitions as bst
+import data_prep.build_state_transitions as bst
 
 
 class BuildStateTransitionsUnitTests(unittest.TestCase):
