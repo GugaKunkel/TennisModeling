@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 import numpy as np
-from .predictor import TransitionMatrix
+
+if TYPE_CHECKING:
+    from .predictor import TransitionMatrix
 
 
 @dataclass(frozen=True)
