@@ -7,8 +7,15 @@ import argparse
 import numpy as np
 import pandas as pd
 
-from .game_absorption import game_win_probability
-from .set_match import MatchDPResult, SetOutcome, compute_match_dp, compute_set_outcome
+# Allow running as a script or as part of the score_model package.
+if __package__ is None or __package__ == "":
+    import sys
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    from score_model.game_absorption import game_win_probability
+    from score_model.set_match import MatchDPResult, SetOutcome, compute_match_dp, compute_set_outcome
+else:
+    from .game_absorption import game_win_probability
+    from .set_match import MatchDPResult, SetOutcome, compute_match_dp, compute_set_outcome
 
 
 @dataclass(frozen=True)
