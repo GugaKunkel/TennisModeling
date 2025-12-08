@@ -19,14 +19,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
 NUMERIC_COLS_BASE = [
-    "player_a_rank",
-    "player_b_rank",
     "rank_diff",
-]
-
-CATEGORICAL_COLS_BASE = [
-    "player_a_name",
-    "player_b_name",
 ]
 
 NUMERIC_COLS_EXTRA = [
@@ -36,8 +29,6 @@ NUMERIC_COLS_EXTRA = [
     "player_a_ht",
     "player_b_ht",
     "ht_diff",
-    "player_a_rank_points",
-    "player_b_rank_points",
     "rank_points_diff",
     "player_a_seeded",
     "player_b_seeded",
@@ -52,8 +43,6 @@ NUMERIC_COLS_SERVE = [
 
 CATEGORICAL_COLS_EXTRA = [
     "surface",
-    "tourney_level",
-    "round",
     "indoor",
 ]
 
@@ -66,16 +55,16 @@ class ModelSpec:
 
 
 MODEL_SPECS = [
-    ModelSpec("A_names_and_ranks", NUMERIC_COLS_BASE, CATEGORICAL_COLS_BASE),
+    ModelSpec("A_names_and_ranks", NUMERIC_COLS_BASE, []),
     ModelSpec(
         "B_rich_features",
         NUMERIC_COLS_BASE + NUMERIC_COLS_EXTRA,
-        CATEGORICAL_COLS_BASE + CATEGORICAL_COLS_EXTRA,
+        CATEGORICAL_COLS_EXTRA,
     ),
     ModelSpec(
         "C_rich_features_with_serve",
         NUMERIC_COLS_BASE + NUMERIC_COLS_EXTRA + NUMERIC_COLS_SERVE,
-        CATEGORICAL_COLS_BASE + CATEGORICAL_COLS_EXTRA,
+        CATEGORICAL_COLS_EXTRA,
     ),
 ]
 
