@@ -99,6 +99,12 @@ def predict_matches_for_file(
     Produce predictions and include the ground-truth label (player_a is the listed winner).
     """
     df = pd.read_csv(matches_path)
+    # Use the same time-based holdout as logreg: only matches after 20250610.
+    df["tourney_date"] = pd.to_numeric(df["tourney_date"], errors="coerce")
+    df = df[df["tourney_date"] > 20250610]
+    if df.empty:
+        print("[warn] No matches with tourney_date > 20250610; nothing to predict.")
+        return pd.DataFrame()
     results = []
 
     cache: dict[str, PlayerMatrix] = {}
