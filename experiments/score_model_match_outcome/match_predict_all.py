@@ -185,6 +185,7 @@ def predict_matches_for_file(
                 "p_player_b_win": 1 - pred.p_match_win,
                 "mle_scoreline": "|".join(pred.most_likely_scoreline),
                 "mle_scoreline_prob": pred.scoreline_probability,
+                "score_actual": row.get("score"),
                 "label": 1,  # player_a is the listed winner
             }
         )
