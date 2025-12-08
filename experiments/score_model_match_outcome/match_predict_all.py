@@ -74,10 +74,7 @@ def load_player_matrix(
     if unbinned_path.exists():
         return PlayerMatrix(load_transition_matrix(unbinned_path), False)
 
-    raise FileNotFoundError(
-        f"No transition matrix found for '{player_name}' "
-        f"(looked in {binned_path} and {unbinned_path})."
-    )
+    raise FileNotFoundError(f"No transition matrix found for '{player_name}' ")
 
 def load_bin_vs_bin_matrix(server_bin: str, opp_bin: str, base_rank: Path) -> PlayerMatrix:
     """
@@ -94,6 +91,7 @@ def predict_matches_for_file(
     base_rank: Path,
     base_unbinned: Path,
     prefer_binned: bool = True,
+    use_bin_when_missing: bool = True,
 ) -> pd.DataFrame:
     """
     Produce predictions and include the ground-truth label (player_a is the listed winner).
@@ -122,7 +120,7 @@ def predict_matches_for_file(
             try:
                 cache[a_name] = load_player_matrix(a_name, base_rank, base_unbinned, prefer_binned)
             except FileNotFoundError as exc:
-                if prefer_binned and a_bin is not None and b_bin is not None:
+                if use_bin_when_missing and prefer_binned and a_bin is not None and b_bin is not None:
                     try:
                         cache[a_name] = load_bin_vs_bin_matrix(a_bin, b_bin, base_rank)
                         print(f"[info] Using bin_vs_bin matrix for {a_name} ({a_bin} vs {b_bin})")
@@ -136,7 +134,7 @@ def predict_matches_for_file(
             try:
                 cache[b_name] = load_player_matrix(b_name, base_rank, base_unbinned, prefer_binned)
             except FileNotFoundError as exc:
-                if prefer_binned and a_bin is not None and b_bin is not None:
+                if use_bin_when_missing and prefer_binned and a_bin is not None and b_bin is not None:
                     try:
                         cache[b_name] = load_bin_vs_bin_matrix(b_bin, a_bin, base_rank)
                         print(f"[info] Using bin_vs_bin matrix for {b_name} ({b_bin} vs {a_bin})")
@@ -222,6 +220,19 @@ def main() -> None:
         type=Path,
         help="Path to write predictions CSV (if omitted, no file is written).",
     )
+    parser.add_argument(
+        "--use-bin-when-missing",
+        action="store_true",
+        dest="use_bin_when_missing",
+        default=True,
+        help="Use bin_vs_bin fallback when player matrix is missing (default: on).",
+    )
+    parser.add_argument(
+        "--no-use-bin-when-missing",
+        action="store_false",
+        dest="use_bin_when_missing",
+        help="Disable bin_vs_bin fallback when player matrix is missing.",
+    )
     args = parser.parse_args()
 
     if not args.base_rank.exists() and not args.base_unbinned.exists():
@@ -234,7 +245,8 @@ def main() -> None:
         matches_path=args.matches,
         base_rank=args.base_rank,
         base_unbinned=args.base_unbinned,
-        prefer_binned=prefer_binned
+        prefer_binned=prefer_binned,
+        use_bin_when_missing=args.use_bin_when_missing,
     )
     metrics = evaluate(preds)
 
