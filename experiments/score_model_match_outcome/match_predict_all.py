@@ -160,14 +160,14 @@ def predict_matches_for_file(
             continue
 
         best_of = int(row.get("best_of", 3))
-
+        server_first = np.random.choice(["A", "B"])
         try:
             pred = predict_match(
                 player_a_matrix=a_matrix.matrix,
                 player_a_bin=a_bin,
                 player_b_matrix=b_matrix.matrix,
                 player_b_bin=b_bin,
-                server_first="A",
+                server_first=server_first,
                 best_of=best_of,
             )
         except Exception as exc:
