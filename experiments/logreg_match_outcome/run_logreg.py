@@ -14,7 +14,6 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, log_loss
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -184,12 +183,11 @@ def build_preprocessor(spec: ModelSpec) -> ColumnTransformer:
     )
 
 
-def train_and_eval(df: pd.DataFrame, spec: ModelSpec, test_size: float, seed: int) -> dict:
+def train_and_eval(train_df: pd.DataFrame, test_df: pd.DataFrame, spec: ModelSpec, seed: int) -> dict:
     preprocessor = build_preprocessor(spec)
     model = LogisticRegression(max_iter=400, n_jobs=1)
     clf = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
 
-    train_df, test_df = train_test_split(df, test_size=test_size, random_state=seed, stratify=df["label"])
     clf.fit(train_df[spec.numeric_cols + spec.categorical_cols], train_df["label"])
     probs = clf.predict_proba(test_df[spec.numeric_cols + spec.categorical_cols])[:, 1]
     preds = (probs >= 0.5).astype(int)
@@ -206,7 +204,6 @@ def train_and_eval(df: pd.DataFrame, spec: ModelSpec, test_size: float, seed: in
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train logistic baselines for match prediction.")
     parser.add_argument("--train", nargs="+", type=Path, required=True, help="CSV file(s) with ATP matches.")
-    parser.add_argument("--holdout-fraction", type=float, default=0.2, help="Holdout fraction.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     args = parser.parse_args()
 
@@ -214,7 +211,15 @@ def main() -> None:
     df = canonicalize_matches(df)
     df = add_feature_columns(df)
 
-    results = [train_and_eval(df, spec, args.holdout_fraction, args.seed) for spec in MODEL_SPECS]
+    # Time-based split: anything after 20250610 is test/holdout.
+    df["tourney_date"] = pd.to_numeric(df["tourney_date"], errors="coerce")
+    test_df = df[df["tourney_date"] > 20250610]
+    train_df = df[~(df["tourney_date"] > 20250610)]
+
+    if test_df.empty:
+        raise ValueError("No rows found with tourney_date > 20250610 for holdout test set.")
+
+    results = [train_and_eval(train_df, test_df, spec, args.seed) for spec in MODEL_SPECS]
 
     print("\nResults")
     for res in results:
