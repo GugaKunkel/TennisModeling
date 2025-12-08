@@ -12,13 +12,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 import sys
+import re
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, log_loss
+from sklearn.metrics import accuracy_score
 
 from score_model.predictor import (
     TransitionMatrix,
@@ -26,6 +27,84 @@ from score_model.predictor import (
     normaize_filename,
     predict_match,
 )
+
+def _parse_set_token(token: str) -> Optional[tuple[int, int]]:
+    clean_token = token.replace("RET", "")
+    # Strip tiebreak parentheses and contents, e.g., 7-6(6) -> 7-6
+    clean_token = re.sub(r"\([^)]*\)", "", clean_token)
+    parts = clean_token.split("-")
+    if len(parts) != 2:
+        return None
+    try:
+        def clean(x: str) -> int:
+            digits = "".join(ch for ch in x if ch.isdigit())
+            return int(digits) if digits else 0
+        a, b = clean(parts[0]), clean(parts[1])
+        return a, b
+    except Exception:
+        return None
+
+def _parse_scoreline(score: str) -> list[tuple[int, int]]:
+    if not isinstance(score, str):
+        return []
+    tokens = [t for t in score.replace("\xa0", " ").split() if t]
+    sets: list[tuple[int, int]] = []
+    for tok in tokens:
+        if "RET" in tok.upper():
+            continue
+        parsed = _parse_set_token(tok)
+        if not parsed:
+            continue
+        a, b = parsed
+        if parsed and (a == 6 or b == 6 or a == 7 or b == 7):
+            sets.append(parsed)
+    return sets
+
+def _score_distance_bin(distance: float | None) -> Optional[str]:
+    if distance is None:
+        return None
+    if distance == 0:
+        return "exact"
+    if distance <= 1:
+        return "<=1"
+    if distance <= 2:
+        return "<=2"
+    if distance <= 3:
+        return "<=3"
+    if distance <= 4:
+        return "<=4"
+    return ">=5"
+
+def _score_distance(actual_score: str, predicted_sets: list[str]) -> tuple[Optional[float], Optional[str], int]:
+    """
+    Compute per-set Manhattan/2 distance for sets where predicted winner matches actual winner.
+    Returns (avg_distance, bin_label, sets_compared).
+    """
+    actual_sets = _parse_scoreline(actual_score)
+    pred_sets: list[tuple[int, int]] = []
+    for s in predicted_sets:
+        try:
+            a_str, b_str = s.split("-")
+            pred_sets.append((int(a_str), int(b_str)))
+        except Exception:
+            continue
+
+    if not actual_sets or not pred_sets:
+        return None, None, 0
+    compare_len = min(len(actual_sets), len(pred_sets))
+    dists: list[float] = []
+    for i in range(compare_len):
+        a_a, a_b = actual_sets[i]
+        p_a, p_b = pred_sets[i]
+        # Only compare if predicted the correct set winner.
+        if (a_a > a_b and p_a > p_b) or (a_b > a_a and p_b > p_a):
+            dist = (abs(a_a - p_a) + abs(a_b - p_b)) / 2.0
+            dists.append(dist)
+
+    if not dists:
+        return None, None, 0
+    avg_dist = sum(dists)
+    return avg_dist, _score_distance_bin(avg_dist), len(dists)
 
 @dataclass(frozen=True)
 class PlayerMatrix:
@@ -190,6 +269,12 @@ def predict_matches_for_file(
             }
         )
 
+        score_str = row.get("score")
+        dist, dist_bin, sets_compared = _score_distance(score_str, pred.most_likely_scoreline)
+        results[-1]["score_distance"] = dist
+        results[-1]["score_distance_bin"] = dist_bin
+        results[-1]["score_sets_compared"] = sets_compared
+
     return pd.DataFrame(results)
 
 def evaluate(preds: pd.DataFrame) -> dict[str, float]:
@@ -199,7 +284,22 @@ def evaluate(preds: pd.DataFrame) -> dict[str, float]:
     y_prob = preds["p_player_a_win"].to_numpy().clip(1e-9, 1 - 1e-9)
     acc = accuracy_score(y_true, (y_prob >= 0.5).astype(int))
     ll = float(np.mean(-(y_true * np.log(y_prob) + (1 - y_true) * np.log(1 - y_prob))))
-    return {"accuracy": acc, "log_loss": ll}
+    # Score distance bin counts
+    bins: dict = {}
+    skipped = 0
+    valid = 0
+    if "score_distance_bin" in preds:
+        bins = preds["score_distance_bin"].value_counts(dropna=False).to_dict()
+        skipped = bins.pop(np.nan, 0) if np.nan in bins else 0
+        skipped += bins.pop(None, 0) if None in bins else 0
+        valid = int(sum(bins.values()))
+    return {
+        "accuracy": acc,
+        "log_loss": ll,
+        "score_bins": bins,
+        "score_bins_skipped": skipped,
+        "score_bins_valid": valid,
+    }
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Batch match predictions using score_model.")
@@ -259,6 +359,12 @@ def main() -> None:
         f"logloss={metrics['log_loss']:.3f}, "
         f"predictions={len(preds)}"
     )
+    if metrics.get("score_bins"):
+        print(f"Score distance bins: {metrics['score_bins']}")
+        print(
+            f"Score distances computed: {metrics.get('score_bins_valid',0)}; "
+            f"skipped: {metrics.get('score_bins_skipped',0)}"
+        )
     print(preds.head())
 
 
