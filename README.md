@@ -1,23 +1,19 @@
-TennisModeling
-==============
+# TennisModeling
+The Goal of this project is to model tennis as a Markov process at different levels. Other ways of modeling tennis will offer strong prediction accuracy but often fail to explain why someone will win or lose a tennis match. By modeling as a Markov process the goal is to keep prediction accuracy while alse being able to pull insights on how players actually win matches. Due to how the game of tennis is set up we can choose many different levels at which to model the game as a Markov process. Two main levels of focus in this repo are the point/score level and the shot/state level.
 
-Model tennis as a Markov process at two levels:
-- Point/score level: transition matrices of game states power closed-form match win and scoreline probabilities.
-- Shot/state level: stroke-by-stroke transitions enable richer simulations.
-
-The repo contains data prep to turn MatchChartingProject (MCP) point logs into transition matrices, simulation tools, and baselines to compare against.
-
-Repository map
-- `data/`, `parsed_data/`: source CSVs and intermediate exports (MCP matches and points).
-- `data_prep/`: parse MCP point strings and build `state_transitions.csv` rows (`data_prep/build_state_transitions.py`).
-- `transition_matrix_builders/`: turn `state_transitions.csv` into score-level (`compute_score_matrices.py`) or shot-level (`compute_state_matrices.py`) transition matrices.
-- `transition_matrices/`: precomputed matrices (score-level binned and unbinned).
-- `score_model/`: closed-form score-based predictor (`predictor.py`) plus helpers for games/sets/matches.
-- `simulations/`: Monte Carlo simulators for score matrices (`simulate_score_match.py`), shot/state matrices (`simulate_match.py`), and tournaments (`simulate_tournament.py`).
-- `experiments/`: evaluation scripts for score-model match prediction and logistic baselines.
+The data used for this project comes from Jeff Sackmanns Match Charting Project (MCP) which provised point and shot level data along with player rankings and from the TML-Database (TMLD) which provides overall match data. 
+## Repository map
+- `data/`: Holds csv data pulled from the MCP and TMLD
+- `data_prep/`: Holds data parsing code and is used to build shot level `state_transitions.csv` file
+- `parsed_data/`: Output folder for csvs of processed data such as the `state_transitions.csv` file
+- `transition_matrix_builders/`: Holds find to build score-levela and shot-level transition matrices. Pulls from `state_transitions.csv`.
+- `transition_matrices/`: Output folder for built transition matrices.
+- `score_model/`: Match and score predicton code. Contains (`predictor.py`) file plus helpers for games/sets/matches.
+- `simulations/`: Monte-Carlo simulation code for score matrices (`simulate_score_match.py`), shot/state matrices (`simulate_match.py`), and tournaments (`simulate_tournament.py`).
+- `experiments/`: Evaluation scripts for score-model along with other models such as logistic regression.
 - `tests/`: pytest coverage for parsers, matrix builders, and simulators.
 
-Setup
+## Setup
 - Python 3.10+ recommended.
 - Install deps (numpy, pandas, scikit-learn, openpyxl, pytest) into a virtual env:
   ```bash
@@ -26,8 +22,8 @@ Setup
   ```
 - Data: place MCP downloads under `data/` or `raw_data/` (expects files like `charting-m-matches.csv`, point-level XLSX/XLSM exports).
 
-Data prep pipeline
-1) Build state transitions from MCP point logs  
+## Data prep pipeline
+### 1) Build state transitions from MCP point logs  
    ```bash
    python data_prep/build_state_transitions.py path/to/files_or_dirs --output state_transitions.csv \
      --state-fields server_flag,prev_family,prev_direction,rally_bin,point_score,point_start_serve
@@ -37,19 +33,19 @@ Data prep pipeline
    - `--output`: CSV to write (default `state_transitions.csv`).
    - `--state-fields`: comma list of fields encoded into state labels; defaults to `server_flag,prev_family,prev_direction,rally_bin,point_score,point_start_serve`. Changing fields alters matrix dimensionality.
 
-2) Build shot/state matrices (for shot-level simulation)  
+### 2) Build shot/state matrices (for shot-level simulation)  
    ```bash
    python transition_matrix_builders/compute_state_matrices.py --input state_transitions.csv \
      --rankings_csv data/atp_rankings.csv --output_dir transition_matrices/state
    ```
    Args:
    - `--input` (required): `state_transitions.csv` from step 1.
-   - `--rankings_csv`: attach player/opponent rank bins; enables bin-specific matrices.
+   - `--rankings_csv`: attaches player/opponent rank bins; enables bin-specific matrices.
    - `--output_dir`: base folder for outputs (default `state_matrices`).
-   - `--bins`: optional explicit bin labels; defaults to predefined ATP bins + `200_plus`.
+   - `--bins`: optional explicit bin labels; defaults to predefined ATP rank bins.
    Output: per-player, bin-vs-bin, bin-vs-all, and global `matrix_result.csv`/`matrix_continue.csv`.
 
-3) Build score matrices (for score-model / fast sim)  
+### 3) Build score matrices (for score-model / fast sim)  
    ```bash
    python transition_matrix_builders/compute_score_matrices.py --input state_transitions.csv \
      --rankings_csv data/atp_rankings.csv --output_dir transition_matrices/score_rank
@@ -62,8 +58,8 @@ Data prep pipeline
    - `--bins`: override bin labels.
    Output mirrors the shot-level builder: global, bin-vs-bin, bin-vs-all, per-player `score_matrix.csv` and `tb_matrix.csv`.
 
-Score-model predictions (closed form)
-- Predict a single matchup from score matrices:
+## Running Score Model for single match
+- To predict a single matchup outcome and scoreline from score matrices:
   ```bash
   python -m score_model.predictor \
     --player-a "Jannik Sinner" --player-a-bin Top10 \
@@ -79,6 +75,7 @@ Score-model predictions (closed form)
   - `--base-path`: directory containing `player/*/score_matrix.csv`.
   Outputs match win probability and most likely set scoreline.
 
+## Testing Score Model prediciton accuracy
 - Batch predictions for a matches CSV:
   ```bash
   python experiments/score_model_match_outcome/match_predict_all.py \
@@ -94,8 +91,9 @@ Score-model predictions (closed form)
   - `--use-bin-when-missing` / `--no-use-bin-when-missing`: toggle fallback to bin-vs-bin matrices when a player file is missing (default on).
   Metrics (accuracy/log-loss/score-distance) are printed; the script is also runnable as `python -m score_model.match_predict_all`.
 
-Simulation tools
-- Score-matrix Monte Carlo (fast, set-level):
+## Running Monte Carlo simulations
+
+### 1) Simulating single match with score matricies:
   ```bash
   python simulations/simulate_score_match.py \
     --server_a_matrix transition_matrices/score_rank/player/player_Jannik_Sinner/score_matrix.csv \
@@ -112,7 +110,7 @@ Simulation tools
   - `--seed`: base RNG seed (increments per match when set).
   - `--base_dir`: optional root containing fallbacks (`bin_vs_bin`, `bin_vs_all`, `global`); merged with primaries.
 
-- Shot/state-level Monte Carlo:
+### 2) Simulating single match with shot matricies:
   ```bash
   python simulations/simulate_match.py \
     --player_a_dir transition_matrices/state/player/player_Jannik_Sinner \
@@ -129,7 +127,7 @@ Simulation tools
   - `--seed`: RNG seed.
   - `--fallback_dir`: global matrices to backfill missing states.
 
-- Tournament simulation (bracket JSON):
+### 3) Simulating entire tournament:
   ```bash
   python simulations/simulate_tournament.py \
     --bracket simulations/french_open_2025.json \
@@ -153,7 +151,7 @@ Simulation tools
   - `--detail_out` / `--summary_out` / `--bracket_out`: output paths for per-sim detail, per-match summary, ASCII bracket.
   - `--rankings_csv`: optional ranks to auto-assign bins for score-mode fallbacks.
 
-Baselines and experiments
+## Baselines and experiments
 - Logistic baselines:
   ```bash
   python experiments/logreg_match_outcome/run_logreg.py --train data/atp_matches_2025.csv --seed 42
@@ -175,14 +173,14 @@ Baselines and experiments
   ```
   Args: `--matches` (required), `--cutoff` date separating train/test (default `20250610`), `--output` optional CSV.
 
-Testing
+## Unit Testing
 - Run the test suite:
   ```bash
   pytest
   ```
 - Notable tests live in `tests/` (parsers, matrix builders, score-model math, simulators).
 
-Notes and tips
+## Notes and tips
 - Transition matrix file names are normalized versions of player names (`player_<Name_With_Underscores>`). The scripts do the normalization for inputs you pass via CLI.
 - When using binned matrices, both opponent bins must be provided (or inferred from ranks); unbinned matrices should omit bin flags.
 - Score-level methods (`score_model/` and `simulate_score_match.py`) are faster and need only serve-side matrices; shot-level simulation uses both continuation and result matrices.
