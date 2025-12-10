@@ -1,7 +1,7 @@
 # TennisModeling
 The Goal of this project is to model tennis as a Markov process at different levels. Other ways of modeling tennis will offer strong prediction accuracy but often fail to explain why someone will win or lose a tennis match. By modeling as a Markov process the goal is to keep prediction accuracy while alse being able to pull insights on how players actually win matches. Due to how the game of tennis is set up we can choose many different levels at which to model the game as a Markov process. Two main levels of focus in this repo are the point/score level and the shot/state level.
 
-The data used for this project comes from Jeff Sackmanns Match Charting Project (MCP) which provised point and shot level data along with player rankings and from the TML-Database (TMLD) which provides overall match data. 
+The data used for this project comes from Jeff Sackmanns [Match Charting Project](https://github.com/JeffSackmann/tennis_MatchChartingProject) (MCP) which provised point and shot level data along with player rankings and from the [TML-Database](https://github.com/Tennismylife/TML-Database) (TMLD) which provides overall match data. 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/ae4bf5a5-0032-4dd2-9bf3-64f785af384b" width="50%">
 </p>
@@ -188,3 +188,5 @@ The data used for this project comes from Jeff Sackmanns Match Charting Project 
 - Transition matrix file names are normalized versions of player names (`player_<Name_With_Underscores>`). The scripts do the normalization for inputs you pass via CLI.
 - When using binned matrices, both opponent bins must be provided (or inferred from ranks); unbinned matrices should omit bin flags.
 - Score-level methods (`score_model/` and `simulate_score_match.py`) are faster and need only serve-side matrices; shot-level simulation uses both continuation and result matrices.
+
+
