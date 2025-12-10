@@ -2,6 +2,10 @@
 The Goal of this project is to model tennis as a Markov process at different levels. Other ways of modeling tennis will offer strong prediction accuracy but often fail to explain why someone will win or lose a tennis match. By modeling as a Markov process the goal is to keep prediction accuracy while alse being able to pull insights on how players actually win matches. Due to how the game of tennis is set up we can choose many different levels at which to model the game as a Markov process. Two main levels of focus in this repo are the point/score level and the shot/state level.
 
 The data used for this project comes from Jeff Sackmanns Match Charting Project (MCP) which provised point and shot level data along with player rankings and from the TML-Database (TMLD) which provides overall match data. 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/ae4bf5a5-0032-4dd2-9bf3-64f785af384b" width="50%">
+</p>
+
 ## Repository map
 - `data/`: Holds csv data pulled from the MCP and TMLD
 - `data_prep/`: Holds data parsing code and is used to build shot level `state_transitions.csv` file
