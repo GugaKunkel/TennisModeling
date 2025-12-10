@@ -27,9 +27,11 @@ def coerce_bool(val) -> bool:
     return s in {"true", "1", "yes", "y"}
 
 def normalize_name(name: str) -> str:
+    """Standardize player names for consistent matching."""
     return str(name).replace("\xa0", " ").strip()
 
 def classify_bin(rank: float | None) -> str:
+    """Map numeric rank to a predefined bin label."""
     if rank is None or pd.isna(rank):
         return DEFAULT_BIN
     for lo, hi, label in BIN_EDGES:
@@ -38,6 +40,7 @@ def classify_bin(rank: float | None) -> str:
     return DEFAULT_BIN
 
 def load_rankings(path: Path) -> Dict[str, float]:
+    """Read rankings CSV into name -> rank mapping."""
     df = pd.read_csv(path)
     name_col = "player" if "player" in df.columns else ("name" if "name" in df.columns else None)
     if not name_col:
@@ -52,6 +55,7 @@ def load_rankings(path: Path) -> Dict[str, float]:
     return mapping
 
 def load_match_map(files: Iterable[Path]) -> Dict[str, tuple[str, str]]:
+    """Build match_id -> (P1, P2) map from MCP matches CSVs."""
     mapping: Dict[str, tuple[str, str]] = {}
     for path in files:
         if not path.exists():

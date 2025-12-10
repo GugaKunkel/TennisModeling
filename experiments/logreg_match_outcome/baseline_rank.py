@@ -15,6 +15,7 @@ import pandas as pd
 
 
 def predict_higher_rank_winner(df: pd.DataFrame) -> pd.DataFrame:
+    """Predict winner by lower rank number on the holdout window."""
     df = df.copy()
     df["tourney_date"] = pd.to_numeric(df["tourney_date"], errors="coerce")
     df = df[df["tourney_date"] > 20250610]

@@ -16,6 +16,7 @@ import pandas as pd
 
 
 def _parse_set_token(token: str) -> Optional[tuple[int, int]]:
+    """Parse a single set token like '7-6(6)' into (7,6)."""
     clean_token = token.replace("RET", "")
     # Strip tiebreak parentheses and contents, e.g., 7-6(6) -> 7-6
     clean_token = re.sub(r"\([^)]*\)", "", clean_token)
@@ -33,6 +34,7 @@ def _parse_set_token(token: str) -> Optional[tuple[int, int]]:
 
 
 def _parse_scoreline(score: str) -> list[tuple[int, int]]:
+    """Parse a match score string into a list of set tuples."""
     if not isinstance(score, str):
         return []
     tokens = [t for t in score.replace("\xa0", " ").split() if t]
@@ -98,6 +100,7 @@ def _score_distance(actual_score: str, predicted_sets: list[str]) -> tuple[Optio
 
 
 def main() -> None:
+    """CLI entry: build most-common-set baseline and report score distance bins."""
     parser = argparse.ArgumentParser(description="Baseline: predict the most common set score.")
     parser.add_argument("--matches", nargs="+", type=Path, required=True, help="CSV file(s) with ATP matches.")
     parser.add_argument("--cutoff", type=int, default=20250610, help="Cutoff tourney_date; > is test, <= is train.")

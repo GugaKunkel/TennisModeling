@@ -20,6 +20,7 @@ else:
 
 @dataclass(frozen=True)
 class MatchPrediction:
+    """Summary of a predicted match: win prob + most likely scoreline."""
     p_match_win: float
     most_likely_scoreline: List[str]
     scoreline_probability: float
@@ -28,6 +29,7 @@ class MatchPrediction:
 
 @dataclass(frozen=True)
 class TransitionMatrix:
+    """Square transition matrix plus state metadata for score chains."""
     states: list[str]
     index_for_state: Mapping[str, int]
     matrix: np.ndarray
@@ -118,6 +120,7 @@ def predict_match(
     server_first: str = "A",
     best_of: int = 5,
 ) -> MatchPrediction:
+    """Compute match win probability and most likely scoreline from serve matrices."""
     if player_a_bin is None or player_b_bin is None:
         a_serving = game_win_probability(player_a_matrix)
         b_serving = game_win_probability(player_b_matrix)
@@ -154,6 +157,7 @@ def predict_match(
     )
 
 def normaize_filename(name: str) -> str:
+    """Normalize player names into path-safe folder/filenames."""
     return name.strip().replace(" ", "_")
 
 
@@ -179,6 +183,7 @@ def _debug_default_args() -> List[str]:
     ]
 
 def cli(argv: List[str] | None = None) -> None:
+    """CLI entry: load player matrices, run prediction, print summary."""
     parser = argparse.ArgumentParser(description="Match predictor using score transition matrices.")
     parser.add_argument("--player-a", required=True, help="Name of Player A.")
     parser.add_argument("--player-a-bin", help="Rank bin of Player A.")

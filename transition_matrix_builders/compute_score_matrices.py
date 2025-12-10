@@ -16,9 +16,11 @@ DEFAULT_BIN = "200_plus"
 
 
 def normalize_name(name: str) -> str:
+    """Standardize player names for consistent matching."""
     return str(name).replace("\xa0", " ").strip()
 
 def coerce_bool(val) -> bool:
+    """Convert common truthy/falsey representations to bool."""
     if isinstance(val, bool):
         return val
     if pd.isna(val):
@@ -29,6 +31,7 @@ def coerce_bool(val) -> bool:
     return s in {"true", "1", "yes", "y"}
 
 def classify_bin(rank: float | None) -> str:
+    """Map numeric rank to a predefined bin label."""
     if rank is None or pd.isna(rank):
         return DEFAULT_BIN
     for lo, hi, label in BIN_EDGES:
@@ -37,6 +40,7 @@ def classify_bin(rank: float | None) -> str:
     return DEFAULT_BIN
 
 def load_rankings(path: Path) -> Dict[str, float]:
+    """Read rankings CSV into name -> rank mapping."""
     df = pd.read_csv(path)
     name_col = "player" if "player" in df.columns else ("name" if "name" in df.columns else None)
     if not name_col:
@@ -51,6 +55,7 @@ def load_rankings(path: Path) -> Dict[str, float]:
     return mapping
 
 def load_match_map(files: Iterable[Path]) -> Dict[str, tuple[str, str]]:
+    """Build match_id -> (P1, P2) map from MCP matches CSVs."""
     mapping: Dict[str, tuple[str, str]] = {}
     for path in files:
         if not path.exists():
@@ -69,6 +74,7 @@ def load_match_map(files: Iterable[Path]) -> Dict[str, tuple[str, str]]:
     return mapping
 
 def attach_bins(df: pd.DataFrame, rank_map: Dict[str, float], match_map: Dict[str, tuple[str, str]]) -> pd.DataFrame:
+    """Add player/opponent rank bins to the transitions frame."""
     df = df.copy()
     df["player_name_norm"] = df["player_name"].apply(normalize_name)
     opps = []
@@ -175,6 +181,7 @@ def save_matrices(
     matrix_filename: str,
     transitions_filename: str,
 ) -> None:
+    """Save transitions and probability matrices for the given subset."""
     out_dir.mkdir(parents=True, exist_ok=True)
     transitions = build_score_transitions(df, use_bins=use_bins, mode=mode)
     transitions.to_csv(out_dir / transitions_filename, index=False)

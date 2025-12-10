@@ -70,6 +70,7 @@ MODEL_SPECS = [
 
 
 def load_matches(paths: Iterable[Path]) -> pd.DataFrame:
+    """Load and concatenate one or more match CSVs."""
     frames = [pd.read_csv(p) for p in paths]
     return pd.concat(frames, ignore_index=True)
 
@@ -129,6 +130,7 @@ def canonicalize_matches(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_feature_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive numeric diff columns and seed flags."""
     df = df.copy()
     # Ensure numeric dtypes
     for col in [

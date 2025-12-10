@@ -14,6 +14,7 @@ DEFAULT_STATE_FIELDS = [
 ]
 
 def collect_input_files(paths: list[str]) -> list[Path]:
+    """Expand a mix of files/dirs into the list of point tables to process."""
     files: list[Path] = []
     for raw in paths:
         path = Path(raw)
@@ -49,6 +50,7 @@ def load_player_map(base_dirs: list[Path]) -> dict[str, tuple[str, str]]:
 
 
 def load_points_table(path: Path) -> pd.DataFrame:
+    """Load the MCP points sheet (CSV or Points tab in XLSX/XLSM)."""
     if path.suffix.lower() == ".csv":
         return pd.read_csv(path)
 
@@ -65,6 +67,7 @@ def load_points_table(path: Path) -> pd.DataFrame:
 
 
 def _coerce_bool(val) -> bool:
+    """Robust bool coercion used on MCP columns."""
     if isinstance(val, bool):
         return val
     if pd.isna(val):
@@ -190,6 +193,7 @@ def advance_point_score(score: str, winner_is_server: bool) -> str:
 
 
 def rally_bin(rally_index: int) -> str:
+    """Bucket rally length for state serialization."""
     if rally_index <= 0:
         return "0"
     if rally_index == 1:
@@ -239,6 +243,7 @@ def serialize_state(field_order: list[str], context: dict[str, str]) -> str:
 
 
 def infer_players(match_id: str) -> tuple[str, str]:
+    """Heuristic fallback for player names when match metadata is missing."""
     parts = match_id.split("-")
     if len(parts) >= 2:
         return parts[-2].replace("_", " "), parts[-1].replace("_", " ")
@@ -246,6 +251,7 @@ def infer_players(match_id: str) -> tuple[str, str]:
 
 
 def clean_code(value: str | float | None) -> str:
+    """Normalize serve/shot codes by stripping NaNs and whitespace."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ""
     return str(value).strip()
@@ -258,6 +264,7 @@ def transitions_for_point(
     player2: str,
     state_fields: list[str],
 ) -> list[dict]:
+    """Convert one MCP point row into a list of state transitions (one per shot)."""
     server_val = row.get("Svr")
     try:
         server = int(server_val)
@@ -414,6 +421,7 @@ def transitions_for_point(
 
 
 def process_file(path: Path, state_fields: list[str], player_map: dict[str, tuple[str, str]]) -> list[dict]:
+    """Process a single point-table file into serialized transitions."""
     df = load_points_table(path)
     df.columns = [c.strip() for c in df.columns]
 
@@ -435,6 +443,7 @@ def process_file(path: Path, state_fields: list[str], player_map: dict[str, tupl
 
 
 def main(argv: list[str]) -> int:
+    """CLI entry: read MCP exports, emit state_transitions CSV."""
     parser = argparse.ArgumentParser(description="Build shot-level state transitions from MCP files.")
     parser.add_argument("paths", nargs="+", help="Paths to .xlsm/.xlsx/.csv files or directories containing them.")
     parser.add_argument("--output", default="state_transitions.csv", help="Output CSV file.")

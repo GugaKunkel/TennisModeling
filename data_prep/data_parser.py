@@ -95,6 +95,7 @@ STOP_PARSING_CHARS = {"N"}
 
 @dataclass
 class Stroke:
+    """Single shot/serve record pulled from an MCP rally string."""
     stroke_idx: int
     player_to_hit: int
     code: str
@@ -193,6 +194,7 @@ def _map_shot_family(stroke: Stroke) -> str:
 
 
 def _normalize_outcome(stroke: Stroke) -> str:
+    """Map a raw outcome string into normalized buckets used downstream."""
     if stroke.outcome is None:
         return "in_play"
     lowered = stroke.outcome.lower()
@@ -218,6 +220,7 @@ def _normalize_outcome(stroke: Stroke) -> str:
 
 
 def _infer_point_winner(stroke: Stroke) -> int | None:
+    """Return point winner label (1/2) if the stroke ends the point."""
     if not stroke.terminal:
         return None
     outcome_type = _normalize_outcome(stroke)
@@ -229,6 +232,7 @@ def _infer_point_winner(stroke: Stroke) -> int | None:
 
 
 class _RallyParser:
+    """Stateful parser that walks a single rally string character by character."""
     def __init__(self, rally_str: str, player1_starts: bool) -> None:
         self.raw = (rally_str or "").strip()
         self.player = 1 if player1_starts else 2
